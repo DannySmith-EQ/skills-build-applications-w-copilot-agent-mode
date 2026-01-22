@@ -15,9 +15,12 @@ Including another URLconf
 """
 
 from django.contrib import admin
+
+import os
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+
 
 router = DefaultRouter()
 router.register(r'users', views.UserViewSet, basename='user')
@@ -26,8 +29,31 @@ router.register(r'activities', views.ActivityViewSet, basename='activity')
 router.register(r'workouts', views.WorkoutViewSet, basename='workout')
 router.register(r'leaderboard', views.LeaderboardViewSet, basename='leaderboard')
 
+
+# Custom API root view to return the correct base URL using $CODESPACE_NAME
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from django.urls import reverse
+
+@api_view(['GET'])
+def custom_api_root(request, format=None):
+    codespace_name = os.environ.get('CODESPACE_NAME', None)
+    if codespace_name:
+        base_url = f"https://{codespace_name}-8000.app.github.dev/api/"
+    else:
+        # fallback to request host (localhost or other)
+        scheme = 'https' if request.is_secure() else 'http'
+        base_url = f"{scheme}://{request.get_host()}/api/"
+    return Response({
+        'users': base_url + 'users/',
+        'teams': base_url + 'teams/',
+        'activities': base_url + 'activities/',
+        'workouts': base_url + 'workouts/',
+        'leaderboard': base_url + 'leaderboard/',
+    })
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
-    path('', views.api_root, name='api-root'),
+    path('', custom_api_root, name='api-root'),
 ]
